@@ -14,17 +14,17 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             artifact-name: heartkick-linux
-            artifact-path: src-tauri/target/release/bundle
+            artifact-path: src-tauri/target/x86_64-unknown-linux-gnu/release/bundle
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact-name: heartkick-windows
-            artifact-path: src-tauri/target/release/bundle
+            artifact-path: src-tauri/target/x86_64-pc-windows-msvc/release/bundle
 
           - os: macos-latest
             target: aarch64-apple-darwin
             artifact-name: heartkick-macos
-            artifact-path: src-tauri/target/release/bundle
+            artifact-path: src-tauri/target/aarch64-apple-darwin/release/bundle
 
     runs-on: ${{ matrix.os }}
 
