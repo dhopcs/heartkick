@@ -2,12 +2,16 @@
 //! the session statistics, the history store, and a broadcast channel that any
 //! consumer (Tauri commands, HTTP, IPC socket, integrations) can subscribe to.
 
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicU64, Ordering},
+    Arc,
+};
 
 use anyhow::Result;
 use parking_lot::RwLock;
 use serde::Serialize;
 use tokio::sync::{broadcast, mpsc, Mutex};
+use tokio::time::{sleep, Duration};
 
 use crate::bluetooth::{ConnectionState, DeviceInfo, HeartRateSource, HrSample};
 use crate::config::Config;
@@ -56,6 +60,10 @@ pub struct Engine {
     events: broadcast::Sender<EngineEvent>,
     /// Lock held while a connect task is running.
     connect_lock: Mutex<()>,
+    /// Incremented on every disconnect (user-initiated or via reconnect).
+    /// The background reconnect task compares its captured generation and exits
+    /// when it no longer matches, preventing stale reconnect loops.
+    connect_generation: Arc<AtomicU64>,
 }
 
 impl Engine {
@@ -76,6 +84,7 @@ impl Engine {
             device_address: RwLock::new(None),
             events,
             connect_lock: Mutex::new(()),
+            connect_generation: Arc::new(AtomicU64::new(0)),
         })
     }
 
@@ -115,9 +124,13 @@ impl Engine {
         let (tx, mut rx) = mpsc::channel::<HrSample>(8);
         self.source.connect(&address, tx).await?;
         *self.device_address.write() = Some(address.clone());
+        // Snapshot the generation *after* disconnect_inner incremented it so
+        // the reconnect loop can detect a subsequent user disconnect/reconnect.
+        let gen = self.connect_generation.load(Ordering::Relaxed);
+        let gen_arc = self.connect_generation.clone();
         let _ = self.events.send(EngineEvent::State {
             state: self.source.state(),
-            device: Some(address),
+            device: Some(address.clone()),
         });
 
         let me = self.clone();
@@ -125,12 +138,60 @@ impl Engine {
             while let Some(sample) = rx.recv().await {
                 me.ingest(sample).await;
             }
-            // Channel closed: source disconnected.
+            // Channel closed: source disconnected unexpectedly.
             *me.device_address.write() = None;
             let _ = me.events.send(EngineEvent::State {
                 state: ConnectionState::Disconnected,
                 device: None,
             });
+
+            // Auto-reconnect with exponential backoff.
+            // Exits immediately if the generation changed (user disconnect / new connect).
+            let mut delay = Duration::from_secs(2);
+            loop {
+                if gen_arc.load(Ordering::Relaxed) != gen {
+                    break;
+                }
+                sleep(delay).await;
+                if gen_arc.load(Ordering::Relaxed) != gen {
+                    break;
+                }
+
+                let _ = me.events.send(EngineEvent::State {
+                    state: ConnectionState::Connecting,
+                    device: Some(address.clone()),
+                });
+
+                let (tx2, mut rx2) = mpsc::channel::<HrSample>(8);
+                match me.source.connect(&address, tx2).await {
+                    Ok(()) => {
+                        // If the user disconnected while we were connecting, undo it.
+                        if gen_arc.load(Ordering::Relaxed) != gen {
+                            let _ = me.source.disconnect().await;
+                            break;
+                        }
+                        *me.device_address.write() = Some(address.clone());
+                        let _ = me.events.send(EngineEvent::State {
+                            state: me.source.state(),
+                            device: Some(address.clone()),
+                        });
+                        delay = Duration::from_secs(2); // reset backoff
+                        while let Some(sample) = rx2.recv().await {
+                            me.ingest(sample).await;
+                        }
+                        // Lost connection again — loop and retry.
+                        *me.device_address.write() = None;
+                        let _ = me.events.send(EngineEvent::State {
+                            state: ConnectionState::Disconnected,
+                            device: None,
+                        });
+                    }
+                    Err(_) => {
+                        // Back off, cap at 30 s.
+                        delay = (delay * 2).min(Duration::from_secs(30));
+                    }
+                }
+            }
         });
 
         Ok(())
@@ -142,6 +203,8 @@ impl Engine {
     }
 
     async fn disconnect_inner(&self) {
+        // Invalidate any running reconnect loop before disconnecting.
+        self.connect_generation.fetch_add(1, Ordering::Relaxed);
         let _ = self.source.disconnect().await;
         *self.device_address.write() = None;
         let _ = self.events.send(EngineEvent::State {
