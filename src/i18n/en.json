@@ -1,0 +1,62 @@
+{
+  "app": { "title": "heartkick" },
+  "tabs": {
+    "home": "Home",
+    "metrics": "Metrics",
+    "settings": "Settings"
+  },
+  "home": {
+    "no_device": "No device connected",
+    "connect": "Connect a device",
+    "scan": "Scan",
+    "scanning": "Scanning…",
+    "disconnect": "Disconnect",
+    "bpm": "bpm",
+    "no_devices_found": "No devices found"
+  },
+  "metrics": {
+    "title": "Metrics",
+    "current": "Current",
+    "min": "Min",
+    "max": "Max",
+    "avg": "Avg",
+    "rmssd": "RMSSD",
+    "duration": "Duration",
+    "samples": "Samples",
+    "reset": "Reset session",
+    "history": "Recent"
+  },
+  "settings": {
+    "title": "Settings",
+    "user": "Profile",
+    "age": "Age",
+    "resting_hr": "Resting HR",
+    "max_hr": "Max HR",
+    "max_hr_hint": "Leave blank to derive from age (220 - age).",
+    "bluetooth": "Bluetooth",
+    "saved_device": "Saved device",
+    "auto_reconnect": "Auto reconnect",
+    "api": "API",
+    "http_enabled": "HTTP API",
+    "http_bind": "HTTP bind address",
+    "socket_enabled": "Local IPC socket",
+    "integrations": "Integrations",
+    "prometheus": "Prometheus /metrics",
+    "osc": "OSC",
+    "osc_target": "Target",
+    "osc_address": "OSC address",
+    "webhooks": "Webhooks",
+    "add_webhook": "Add webhook",
+    "remove": "Remove",
+    "save": "Save",
+    "saved": "Saved",
+    "config_path": "Config file",
+    "data_path": "Data folder"
+  },
+  "state": {
+    "disconnected": "Disconnected",
+    "scanning": "Scanning",
+    "connecting": "Connecting",
+    "connected": "Connected"
+  }
+}

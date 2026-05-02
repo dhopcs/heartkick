@@ -1,0 +1,133 @@
+<!doctype html>
+<!--
+  Heartkick Default OBS Overlay
+  ==========================================
+  This page polls /api/bpm every 500 ms and animates a heart in sync with BPM.
+  Add it in OBS as a Browser Source pointing to http://127.0.0.1:9191/
+
+  Customise freely! Edit this template in the Integrations → OBS Overlay panel.
+  If you wish to use your own editor, the user template is located at:
+    • Linux / macOS: ~/.config/heartkick/overlay.html
+    • Windows: %APPDATA%\heartkick\overlay.html
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Heart Rate Overlay</title>
+  <style>
+    /* ── Theming ─────────────────────────────────────────────────────────── */
+    :root {
+      --heart-color:    #ff2d55;              /* fill colour of the heart   */
+      --heart-glow:     rgba(255,45,85,0.5);  /* drop-shadow glow colour    */
+      --text-color:     #ffffff;
+      --text-shadow:    0 2px 8px rgba(0,0,0,0.65);
+      --font:           "Segoe UI", system-ui, sans-serif;
+      --heart-size:     72px;
+      --bpm-font-size:  52px;
+      --gap:            14px;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────────── */
+    html, body {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: transparent;
+      overflow: hidden;
+      font-family: var(--font);
+      color: var(--text-color);
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .widget {
+      display: flex;
+      align-items: center;
+      gap: var(--gap);
+    }
+
+    /* ── Heart icon ──────────────────────────────────────────────────────── */
+    .heart {
+      width: var(--heart-size);
+      height: var(--heart-size);
+      fill: var(--heart-color);
+      filter: drop-shadow(0 0 12px var(--heart-glow));
+      transform-origin: center;
+      flex-shrink: 0;
+    }
+
+    /* ── BPM number ──────────────────────────────────────────────────────── */
+    .bpm {
+      font-size: var(--bpm-font-size);
+      font-weight: 800;
+      line-height: 1;
+      text-shadow: var(--text-shadow);
+      letter-spacing: -0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay">
+    <div class="widget">
+
+      <svg id="heart" class="heart" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      </svg>
+
+      <div class="bpm" id="bpmValue"></div>
+    </div>
+  </div>
+
+  <script>
+    const heartEl = document.getElementById("heart");
+    const bpmEl   = document.getElementById("bpmValue");
+    let currentBpm = 60;
+    let beating    = false;
+
+    function animateHeart() {
+      heartEl.getAnimations().forEach(a => a.cancel());
+      heartEl.animate(
+        [
+          { transform: "scale(1)"    },
+          { transform: "scale(1.10)", offset: 0.20 },
+          { transform: "scale(0.97)", offset: 0.50 },
+          { transform: "scale(1)"    },
+        ],
+        { duration: 350, easing: "ease-out" }
+      );
+      setTimeout(animateHeart, 60000 / currentBpm);
+    }
+
+    function applyBpm(raw) {
+      const bpm = Math.max(20, Math.min(300, Math.round(Number(raw))));
+      bpmEl.textContent = bpm;
+      currentBpm = bpm;
+      if (!beating) {
+        beating = true;
+        animateHeart();
+      }
+    }
+
+    async function poll() {
+      try {
+        const res = await fetch("/api/bpm", { cache: "no-store" });
+        if (res.ok) applyBpm((await res.json()).bpm);
+      } catch {
+        /* device disconnected or server not yet ready, retry */
+      }
+    }
+
+    // Start immediately with a placeholder rate so the animation is visible.
+    applyBpm(60);
+    poll();
+    setInterval(poll, 500);
+  </script>
+</body>
+</html>

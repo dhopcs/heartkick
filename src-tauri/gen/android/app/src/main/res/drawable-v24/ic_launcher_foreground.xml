@@ -1,0 +1,13 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Heart centred at 80% of canvas (safe zone). Original viewBox 0 0 1024 1024,
+       scaled to 86.4×86.4dp and translated to centre (10.8, 10.8). -->
+  <group android:translateX="10.8" android:translateY="10.8" android:scaleX="0.084375" android:scaleY="0.084375">
+    <path
+        android:fillColor="#ffffff"
+        android:pathData="M512 870 C512 870 102 563 102 307 C102 164 215 82 307 82 C389 82 460 133 512 205 C564 133 635 82 717 82 C809 82 922 164 922 307 C922 563 512 870 512 870Z" />
+  </group>
+</vector>

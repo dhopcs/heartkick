@@ -1,0 +1,33 @@
+{
+  "name": "heartkick",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-opener": "^2.5.4",
+    "codejar": "^4.3.0",
+    "preact": "^10.29.1",
+    "preact-i18n": "2.4.0-preactx",
+    "prismjs": "^1.30.0",
+    "uplot": "^1.6.32"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.5",
+    "@tailwindcss/vite": "^4.2.4",
+    "@tauri-apps/cli": "^2.11.0",
+    "@types/prismjs": "^1.26.6",
+    "oxc-transform": "^0.128.0",
+    "oxfmt": "^0.47.0",
+    "oxlint": "^1.62.0",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10"
+  }
+}

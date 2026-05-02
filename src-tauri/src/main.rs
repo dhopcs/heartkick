@@ -1,0 +1,80 @@
+// Prevents additional console window on Windows in release, DO NOT REMOVE!!
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
+use clap::Parser;
+use heartkick_lib::cli::Cli;
+
+fn main() {
+    // WebKitGTK on Wayland compositor can fail with "Error 71 (Protocol error)".
+    // These vars must be set before GTK/GDK initialises
+    // Users can override either variable in their environment before launching.
+    #[cfg(target_os = "linux")]
+    {
+        if std::env::var("GDK_BACKEND").is_err() {
+            // Fall back to XWayland; avoids Wayland compositor protocol errors.
+            // SAFETY: single-threaded at this point, no other thread can read env.
+            unsafe { std::env::set_var("GDK_BACKEND", "x11") };
+        }
+        if std::env::var("WEBKIT_DISABLE_COMPOSITING_MODE").is_err() {
+            unsafe { std::env::set_var("WEBKIT_DISABLE_COMPOSITING_MODE", "1") };
+        }
+    }
+
+    let cli = Cli::parse();
+
+    if cli.daemon {
+        heartkick_lib::init_tracing(cli.log.as_deref());
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .thread_stack_size(512 * 1024)
+            .enable_all()
+            .build()
+            .expect("tokio runtime");
+        if let Err(e) = runtime.block_on(heartkick_lib::daemon::run_forever()) {
+            eprintln!("daemon error: {e}");
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    #[cfg(not(any(target_os = "ios", target_os = "android")))]
+    {
+        use heartkick_lib::config::{Config, LaunchMode};
+
+        // Load config once; fall back to defaults if the file doesn't exist yet.
+        let config = heartkick_lib::config::config_path()
+            .and_then(|p| Config::load_from(&p))
+            .unwrap_or_default();
+
+        // Resolve launch mode: CLI flag > config setting > default (gui).
+        let use_tui = if cli.tui {
+            true
+        } else if cli.gui {
+            false
+        } else {
+            config.general.launch_mode == LaunchMode::Tui
+        };
+
+        if use_tui {
+            heartkick_lib::init_tracing_tui(cli.log.as_deref());
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2)
+                .thread_stack_size(512 * 1024)
+                .enable_all()
+                .build()
+                .expect("tokio runtime");
+            if let Err(e) = runtime.block_on(async {
+                let daemon = heartkick_lib::daemon::start().await?;
+                let config = daemon.config.read().clone();
+                heartkick_lib::tui::run(daemon.engine, config, daemon.config_file, daemon.data_dir)
+                    .await
+            }) {
+                eprintln!("tui error: {e}");
+                std::process::exit(1);
+            }
+            return;
+        }
+    }
+
+    heartkick_lib::run()
+}

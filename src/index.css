@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pulse: #ff3366;
+  --color-pulse-dim: #b3204a;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0a0a0f;
+  color: #e6e6ea;
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+/* On desktop enforce a minimum width so the sidebar is always visible. */
+@media (min-width: 800px) {
+  html {
+    min-width: 800px;
+  }
+}
+
+/* Pulse animation for heart icon - fires once per incoming sample */
+@keyframes heartkick-pulse {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(1.08);
+  }
+  50% {
+    transform: scale(0.97);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.heartkick-pulse {
+  animation: heartkick-pulse var(--pulse-duration, 0.3s) ease-out 1 forwards;
+}
+
+/* Prism + CodeJar syntax highlighting overrides. */
+pre[class*="language-"],
+code[class*="language-"] {
+  background: transparent !important;
+  text-shadow: none;
+}
+.codejar-wrap:focus,
+.codejar-wrap:focus-within {
+  outline: none;
+}
+.codejar-wrap:focus-within {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+}
