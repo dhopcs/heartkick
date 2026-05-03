@@ -43,7 +43,7 @@ impl Default for BlecSource {
 #[cfg(not(any(target_os = "ios", target_os = "android")))]
 mod desktop {
     use super::*;
-    use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
+    use btleplug::api::{Central, CentralEvent, Manager as _, Peripheral as _, ScanFilter};
     use btleplug::platform::Manager;
     use futures::StreamExt;
     use tokio::time::{sleep, timeout, Duration};
@@ -149,6 +149,13 @@ mod desktop {
         // Store peripheral so disconnect() can reach it.
         *peripheral_slot.lock().await = Some(found.clone());
 
+        // Subscribe to central events so we can detect an unexpected disconnect
+        // even when btleplug's notification stream doesn't close by itself
+        // (common on Linux/BlueZ when the device drops unexpectedly).
+        let peripheral_id = found.id();
+        let address_owned = address_str.to_owned();
+        let mut central_events = adapter.events().await.context("central events")?;
+
         // Pump notifications in a background task.
         let mut stream = found
             .notifications()
@@ -157,11 +164,32 @@ mod desktop {
         let state2 = state.clone();
         let slot2 = peripheral_slot.clone();
         tokio::spawn(async move {
-            while let Some(n) = stream.next().await {
-                if n.uuid == uuids::HEART_RATE_MEASUREMENT {
-                    if let Some(sample) = parse_hr_measurement(&n.value) {
-                        if tx.send(sample).await.is_err() {
-                            break;
+            // Keep the adapter alive so central events keep flowing.
+            let _adapter = adapter;
+            loop {
+                tokio::select! {
+                    notif = stream.next() => {
+                        match notif {
+                            Some(n) if n.uuid == uuids::HEART_RATE_MEASUREMENT => {
+                                if let Some(sample) = parse_hr_measurement(&n.value) {
+                                    if tx.send(sample).await.is_err() {
+                                        break;
+                                    }
+                                }
+                            }
+                            Some(_) => {} // other characteristics, ignore
+                            None => break, // stream closed cleanly
+                        }
+                    }
+                    evt = central_events.next() => {
+                        match evt {
+                            // Device we're connected to dropped the link.
+                            Some(CentralEvent::DeviceDisconnected(id)) if id == peripheral_id => {
+                                tracing::warn!("BLE device disconnected unexpectedly: {}", address_owned);
+                                break;
+                            }
+                            None => break, // event stream closed
+                            _ => {}
                         }
                     }
                 }
@@ -222,10 +250,12 @@ mod mobile {
     ) -> Result<()> {
         let handler = get_handler().context("blec handler not initialised")?;
         let state2 = state.clone();
+        let address_owned = address.to_owned();
         handler
             .connect(
                 address,
                 (move || {
+                    tracing::warn!("BLE device disconnected unexpectedly: {}", address_owned);
                     *state2.lock() = ConnectionState::Disconnected;
                 })
                 .into(),
