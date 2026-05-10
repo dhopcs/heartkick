@@ -1,8 +1,3 @@
-//! Sample history backed by SQLite via sqlx.
-//!
-//! [`SqliteHistory`] is the default; the [`HistoryStore`] trait exists so
-//! tests or future backends can substitute without touching callers.
-
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use anyhow::{Context, Result};

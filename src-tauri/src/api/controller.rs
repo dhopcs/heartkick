@@ -1,8 +1,3 @@
-//! Backend agnostic operations on the [`Engine`].
-//!
-//! Every transport (HTTP, IPC socket, Tauri commands) goes through this layer,
-//! so behaviour stays consistent regardless of caller.
-
 use std::sync::Arc;
 
 use anyhow::Result;

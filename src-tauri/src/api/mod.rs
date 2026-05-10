@@ -1,10 +1,3 @@
-//! API surface for external consumers.
-//!
-//! [`controller`] holds backend agnostic operations against the [`Engine`];
-//! [`http`] and [`socket`] expose those operations over HTTP and a local IPC
-//! socket respectively. Tauri commands also delegate here so the same logic
-//! powers every entry point.
-
 pub mod controller;
 pub mod http;
 pub mod socket;

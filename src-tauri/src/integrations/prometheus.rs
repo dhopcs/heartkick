@@ -3,14 +3,47 @@
 
 use std::collections::BTreeMap;
 use std::fmt::Write;
+use std::sync::Arc;
 
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use reqwest::Client;
 
 use crate::config::PrometheusPushConfig;
-use crate::core::{EngineEvent, EngineSnapshot};
+use crate::core::{Engine, EngineEvent, EngineSnapshot};
 
 use super::Integration;
+
+/// Serve the `/metrics` Prometheus endpoint on `bind` (e.g. `"127.0.0.1:9090"`).
+pub async fn serve(engine: Arc<Engine>, bind: String) -> Result<()> {
+    use actix_web::{web, App, HttpResponse, HttpServer};
+
+    async fn metrics_handler(engine: web::Data<Engine>) -> HttpResponse {
+        let snap = engine.snapshot();
+        HttpResponse::Ok()
+            .content_type("text/plain; version=0.0.4; charset=utf-8")
+            .body(render(&snap))
+    }
+
+    let engine_data = web::Data::from(engine);
+    // HttpServer::run() is !Send; run on a dedicated thread.
+    tokio::task::spawn_blocking(move || {
+        actix_web::rt::System::new().block_on(async move {
+            let server = HttpServer::new(move || {
+                App::new()
+                    .app_data(engine_data.clone())
+                    .route("/metrics", web::get().to(metrics_handler))
+            })
+            .workers(1)
+            .bind(&bind)?;
+            tracing::info!(addr = %bind, "Prometheus metrics server listening");
+            server.run().await
+        })
+    })
+    .await
+    .context("Prometheus server thread panicked")?
+    .context("Prometheus serve")
+}
 
 pub fn render(snap: &EngineSnapshot) -> String {
     let mut out = String::with_capacity(256);
@@ -62,7 +95,7 @@ fn render_sample(snap: &EngineSnapshot) -> Option<String> {
     Some(out)
 }
 
-// ── Push integration ─────────────────────────────────────────────────────────
+// Push to Prometheus (VictoriaMetrics for example) on every sample.
 
 pub struct PrometheusPushIntegration {
     client: Client,

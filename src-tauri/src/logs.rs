@@ -1,8 +1,3 @@
-//! In-process log ring buffer + a [`tracing_subscriber::Layer`] that feeds it.
-//!
-//! Call `get_logs` from the Tauri command surface to stream recent entries to
-//! the frontend log viewer.
-
 use std::collections::VecDeque;
 use std::fmt::Write as FmtWrite;
 use std::sync::OnceLock;

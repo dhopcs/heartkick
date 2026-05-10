@@ -1,5 +1,3 @@
-//! Live session statistics: min, max, avg BPM and elapsed duration.
-
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 

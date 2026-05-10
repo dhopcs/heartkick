@@ -1,6 +1,3 @@
-//! Tauri command surface. Each command delegates to the controller layer so
-//! the same logic powers HTTP, IPC and the in app webview.
-
 use std::sync::Arc;
 
 use serde::Serialize;
@@ -118,7 +115,7 @@ pub fn get_logs(limit: Option<usize>) -> Vec<String> {
     crate::logs::recent(limit.unwrap_or(200))
 }
 
-// ── Overlay HTML management ───────────────────────────────────────────────────
+// Overlay HTML management
 
 /// Return the user's custom overlay HTML, or `None` if no custom template
 /// has been saved (in which case the embedded default is served).

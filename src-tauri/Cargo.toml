@@ -2,8 +2,15 @@
 name = "heartkick"
 version = "1.0.0"
 description = "Cross platform and extensible Heart Rate Monitor + Integrations"
-authors = ["heartkick contributors"]
+authors = ["Tyler Thompson <me@dhopcs.org>"]
 edition = "2021"
+
+[features]
+default = ["gui"]
+gui = [
+	"dep:tauri",
+	"dep:tauri-plugin-opener",
+]
 
 [lib]
 name = "heartkick_lib"
@@ -17,37 +24,37 @@ path = "src/main.rs"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [] }
-tauri-plugin-opener = "2"
-tauri-plugin-blec = "0.8"
-
+anyhow = "1"
+async-trait = "0.1"
+actix-cors = "0.7"
+actix-web = "4"
+chrono = { version = "0.4", features = ["serde"] }
+clap = { version = "4", features = ["derive"] }
+directories = "6"
+futures = { version = "0.3", default-features = false, features = ["std"] }
+parking_lot = "0.12"
+reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
+rosc = "0.11"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-toml = "0.8"
-
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio", "chrono"] }
+tauri = { version = "2", features = [], optional = true }
+tauri-plugin-opener = { version = "2", optional = true }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "net", "io-util", "time", "macros", "signal"] }
 tokio-stream = { version = "0.1", features = ["sync"] }
-async-trait = "0.1"
-futures = { version = "0.3", default-features = false, features = ["std"] }
-
-clap = { version = "4", features = ["derive"] }
-
-anyhow = "1"
+toml = "1.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-
-directories = "6"
-chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1" }
-parking_lot = "0.12"
-
-axum = { version = "0.8" }
-tower-http = { version = "0.6", features = ["cors"] }
-
-rosc = "0.11"
-reqwest = { version = "0.13", default-features = false, features = ["json", "rustls"] }
-
-sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"] }
 
 [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 btleplug = "0.12"
+
+[target.'cfg(any(target_os = "ios", target_os = "android"))'.dependencies]
+tauri-plugin-blec = "0.8"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = 3
+strip = true

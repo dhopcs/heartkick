@@ -1,7 +1,7 @@
 /// Device scan / connect / disconnect controls.
 
 import { useState } from "preact/hooks";
-import { api } from "../api";
+import { api, onEngineEvent } from "../api";
 import type { DeviceInfo, EngineSnapshot } from "../types";
 
 interface Props {
@@ -25,7 +25,18 @@ export function DevicePanel({ snapshot, onConnected }: Props) {
     setScanning(true);
     setError(null);
     setDevices([]);
-    let found: import("../types").DeviceInfo[] = [];
+
+    // Subscribe to device_found events so the list populates as devices appear.
+    const unlisten = await onEngineEvent((evt) => {
+      if (evt.type !== "device_found") return;
+      const d = evt.device;
+      if (!all && !d.advertises_hr) return;
+      setDevices((prev) =>
+        prev.some((x) => x.address === d.address) ? prev : [...prev, d],
+      );
+    });
+
+    let found: DeviceInfo[] = [];
     try {
       found = await api.scan(8000, !all);
     } catch {
@@ -36,11 +47,15 @@ export function DevicePanel({ snapshot, onConnected }: Props) {
       try {
         found = await api.scan(8000, !all);
       } catch (e) {
+        unlisten();
         setError(String(e));
         setScanning(false);
         return;
       }
     }
+
+    unlisten();
+    // Replace with the final authoritative list (includes RSSI updates).
     setDevices(found);
     setScanned(true);
     setScanning(false);
@@ -123,15 +138,10 @@ export function DevicePanel({ snapshot, onConnected }: Props) {
         </div>
       </div>
 
-      {error && <div class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
+      {error && <div class="rounded-xl bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>}
 
-      {scanning && (
-        <div class="rounded-xl bg-white/5 px-4 py-8 text-center text-sm text-white/40">
-          Scanning for {showAll ? "all BLE devices" : "heart rate monitors"}…
-        </div>
-      )}
-
-      {!scanning && devices.length > 0 && (
+      {/* Device list — shown while scanning (progressive) and after */}
+      {devices.length > 0 && (
         <ul class="divide-y divide-white/5 overflow-hidden rounded-xl bg-white/5">
           {devices.map((d) => (
             <li key={d.address} class="flex items-center justify-between px-4 py-3">
@@ -152,6 +162,12 @@ export function DevicePanel({ snapshot, onConnected }: Props) {
             </li>
           ))}
         </ul>
+      )}
+
+      {scanning && devices.length === 0 && (
+        <div class="rounded-xl bg-white/5 px-4 py-8 text-center text-sm text-white/40">
+          Scanning for {showAll ? "all BLE devices" : "heart rate monitors"}…
+        </div>
       )}
 
       {!scanning && devices.length === 0 && (

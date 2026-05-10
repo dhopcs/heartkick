@@ -4,11 +4,25 @@
 use clap::Parser;
 use heartkick_lib::cli::Cli;
 
+fn run_daemon_forever(log_level: Option<&str>) {
+    heartkick_lib::init_tracing(log_level);
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .thread_stack_size(512 * 1024)
+        .enable_all()
+        .build()
+        .expect("tokio runtime");
+    if let Err(e) = runtime.block_on(heartkick_lib::daemon::run_forever()) {
+        eprintln!("daemon error: {e}");
+        std::process::exit(1);
+    }
+}
+
 fn main() {
     // WebKitGTK on Wayland compositor can fail with "Error 71 (Protocol error)".
     // These vars must be set before GTK/GDK initialises
     // Users can override either variable in their environment before launching.
-    #[cfg(target_os = "linux")]
+    #[cfg(all(target_os = "linux", feature = "gui"))]
     {
         if std::env::var("GDK_BACKEND").is_err() {
             // Fall back to XWayland; avoids Wayland compositor protocol errors.
@@ -23,19 +37,17 @@ fn main() {
     let cli = Cli::parse();
 
     if cli.daemon {
-        heartkick_lib::init_tracing(cli.log.as_deref());
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .worker_threads(2)
-            .thread_stack_size(512 * 1024)
-            .enable_all()
-            .build()
-            .expect("tokio runtime");
-        if let Err(e) = runtime.block_on(heartkick_lib::daemon::run_forever()) {
-            eprintln!("daemon error: {e}");
-            std::process::exit(1);
-        }
+        run_daemon_forever(cli.log.as_deref());
         return;
     }
 
-    heartkick_lib::run()
+    #[cfg(feature = "gui")]
+    {
+        heartkick_lib::run();
+    }
+
+    #[cfg(not(feature = "gui"))]
+    {
+        run_daemon_forever(cli.log.as_deref());
+    }
 }

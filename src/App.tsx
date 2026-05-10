@@ -14,8 +14,6 @@ import type { ComponentChildren } from "preact";
 
 type Tab = "home" | "metrics" | "devices" | "integrations" | "settings" | "logs";
 
-// ── Tab icons (SVG) ───────────────────────────────────────────────────────────
-
 function IconHeart() {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">

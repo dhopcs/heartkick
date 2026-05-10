@@ -1,7 +1,3 @@
-//! The [`Engine`] is the single source of truth: it owns the heart rate source,
-//! the session statistics, the history store, and a broadcast channel that any
-//! consumer (Tauri commands, HTTP, IPC socket, integrations) can subscribe to.
-
 use std::sync::{
     atomic::{AtomicU64, Ordering},
     Arc,
@@ -46,6 +42,8 @@ pub enum EngineEvent {
         state: ConnectionState,
         device: Option<String>,
     },
+    /// Emitted for each device discovered during a scan, as it appears.
+    DeviceFound { device: DeviceInfo },
     SessionReset,
 }
 
@@ -101,7 +99,18 @@ impl Engine {
     }
 
     pub async fn scan(&self, timeout_ms: u64) -> Result<Vec<DeviceInfo>> {
-        self.source.scan(timeout_ms).await
+        let (tx, mut rx) = mpsc::channel::<DeviceInfo>(32);
+        let events = self.events.clone();
+        // Forward each progressively-discovered device to the broadcast channel
+        // so the UI can show devices as they appear.
+        let fwd = tokio::spawn(async move {
+            while let Some(device) = rx.recv().await {
+                let _ = events.send(EngineEvent::DeviceFound { device });
+            }
+        });
+        let result = self.source.scan(timeout_ms, tx).await;
+        fwd.abort();
+        result
     }
 
     pub fn snapshot(&self) -> EngineSnapshot {

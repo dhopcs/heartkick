@@ -1,6 +1,3 @@
-//! heartkick library entry. Exposes the modules used by both the binary and
-//! the Tauri runtime, and provides [`run`] for the app mode.
-
 pub mod api;
 pub mod bluetooth;
 pub mod cli;
@@ -9,8 +6,10 @@ pub mod core;
 pub mod daemon;
 pub mod integrations;
 pub mod logs;
+#[cfg(feature = "gui")]
 pub mod tauri_commands;
 
+#[cfg(feature = "gui")]
 use tauri_commands as cmds;
 
 /// Initialize tracing once. Safe to call multiple times.
@@ -27,6 +26,7 @@ pub fn init_tracing(level: Option<&str>) {
 }
 
 /// Run heartkick in app mode: starts the embedded daemon and the Tauri webview.
+#[cfg(feature = "gui")]
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     init_tracing(None);
@@ -40,59 +40,28 @@ pub fn run() {
     // Hand the runtime to Tauri before building the app so async commands work.
     tauri::async_runtime::set(runtime.handle().clone());
 
-    // On desktop we can resolve OS-standard directories without a Tauri context,
-    // so we start the daemon now and pass the engine into the builder directly.
-    // On mobile (Android/iOS) ProjectDirs cannot determine directories until
-    // Tauri has initialised the platform environment, so we defer daemon startup
-    // to the setup hook where the path resolver is available.
-    #[cfg(not(mobile))]
-    let pre_handle = runtime.block_on(async { daemon::start().await.expect("daemon start") });
+    let rh = runtime.handle().clone();
 
-    let _rh = runtime.handle().clone();
-    #[cfg(mobile)]
-    let rh = _rh;
-
-    #[cfg(not(mobile))]
-    let state = cmds::AppState {
-        engine: pre_handle.engine.clone(),
-        config: pre_handle.config.clone(),
-        config_file: pre_handle.config_file.clone(),
-        data_dir: pre_handle.data_dir.clone(),
-    };
-
-    let mut builder = tauri::Builder::default()
-        .plugin(tauri_plugin_blec::init())
-        .plugin(tauri_plugin_opener::init());
-
-    #[cfg(not(mobile))]
-    {
-        builder = builder.manage(state);
-    }
+    let builder = tauri::Builder::default().plugin(tauri_plugin_opener::init());
+    #[cfg(any(target_os = "ios", target_os = "android"))]
+    let builder = builder.plugin(tauri_plugin_blec::init());
 
     builder
         .setup(move |app| {
-            #[cfg(not(mobile))]
-            {
-                cmds::forward_events(app.handle(), pre_handle.engine.clone());
-            }
-
-            #[cfg(mobile)]
-            {
-                use tauri::Manager;
-                let config_dir = app.path().app_config_dir().expect("app_config_dir");
-                let data_dir = app.path().app_data_dir().expect("app_data_dir");
-                let handle = rh
-                    .block_on(daemon::start_with_paths(config_dir, data_dir))
-                    .expect("daemon start");
-                let mobile_state = cmds::AppState {
-                    engine: handle.engine.clone(),
-                    config: handle.config.clone(),
-                    config_file: handle.config_file.clone(),
-                    data_dir: handle.data_dir.clone(),
-                };
-                app.manage(mobile_state);
-                cmds::forward_events(&app.handle(), handle.engine.clone());
-            }
+            use tauri::Manager;
+            let config_dir = app.path().app_config_dir().expect("app_config_dir");
+            let data_dir = app.path().app_data_dir().expect("app_data_dir");
+            let handle = rh
+                .block_on(daemon::start_with_paths(config_dir, data_dir))
+                .expect("daemon start");
+            let app_state = cmds::AppState {
+                engine: handle.engine.clone(),
+                config: handle.config.clone(),
+                config_file: handle.config_file.clone(),
+                data_dir: handle.data_dir.clone(),
+            };
+            app.manage(app_state);
+            cmds::forward_events(&app.handle(), handle.engine.clone());
 
             Ok(())
         })

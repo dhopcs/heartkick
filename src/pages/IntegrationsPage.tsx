@@ -442,8 +442,6 @@ function OverlayHtmlEditor() {
   );
 }
 
-// ── Shared UI helpers ─────────────────────────────────────────────────────────
-
 /** Uncontrolled textarea for editing `Record<string,string>` headers.
  *  Keeps a local draft so typing is never interrupted by round-trip serialization. */
 function HeadersTextarea({

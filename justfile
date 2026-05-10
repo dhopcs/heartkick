@@ -36,6 +36,10 @@ dev-android device="":
 build:
     pnpm tauri build
 
+# Build headless desktop binary (no GUI feature)
+build-headless:
+    cd src-tauri && cargo build --release --no-default-features
+
 # Generate a local signing keystore (only needed once)
 make-keystore:
     keytool -genkey -v -keystore "{{ ks }}" \

@@ -1,5 +1,3 @@
-//! Heart rate variability via RMSSD on a sliding window of RR intervals.
-
 use std::collections::VecDeque;
 
 const WINDOW: usize = 60;

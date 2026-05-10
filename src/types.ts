@@ -36,6 +36,7 @@ export type EngineEvent =
       session: SessionStats;
     }
   | { type: "state"; state: ConnectionState; device: string | null }
+  | { type: "device_found"; device: DeviceInfo }
   | { type: "session_reset" };
 
 export interface DeviceInfo {

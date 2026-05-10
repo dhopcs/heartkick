@@ -11,15 +11,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use anyhow::Result;
-use axum::{
-    extract::State,
-    response::{Html, IntoResponse},
-    routing::get,
-    Json, Router,
-};
+use actix_cors::Cors;
+use actix_web::{web, App, HttpResponse, HttpServer};
+use anyhow::{Context as _, Result};
 use serde_json::json;
-use tower_http::cors::CorsLayer;
 
 use crate::core::Engine;
 
@@ -36,34 +31,46 @@ struct OverlayState {
 
 /// Spawn the overlay server on `bind` (e.g. `"127.0.0.1:9191"`).
 pub async fn serve(engine: Arc<Engine>, bind: String, custom_html_path: PathBuf) -> Result<()> {
-    let state = OverlayState {
+    let state = web::Data::new(OverlayState {
         engine,
         custom_html_path,
-    };
-    let app = Router::new()
-        .route("/", get(index_handler))
-        .route("/api/bpm", get(bpm_handler))
-        .layer(CorsLayer::permissive())
-        .with_state(state);
+    });
 
-    let listener = tokio::net::TcpListener::bind(&bind).await?;
-    tracing::info!(%bind, "overlay server listening");
-    axum::serve(listener, app).await?;
-    Ok(())
+    // HttpServer::run() is !Send; run on a dedicated thread.
+    tokio::task::spawn_blocking(move || {
+        actix_web::rt::System::new().block_on(async move {
+            let server = HttpServer::new(move || {
+                App::new()
+                    .app_data(state.clone())
+                    .wrap(Cors::permissive())
+                    .route("/", web::get().to(index_handler))
+                    .route("/api/bpm", web::get().to(bpm_handler))
+            })
+            .workers(1)
+            .bind(&bind)?;
+            tracing::info!(%bind, "overlay server listening");
+            server.run().await
+        })
+    })
+    .await
+    .context("overlay server thread panicked")?
+    .context("overlay server")
 }
 
 /// Serve the overlay HTML. Reads the custom file on every request so edits are
 /// live without restarting the server.
-async fn index_handler(State(s): State<OverlayState>) -> impl IntoResponse {
-    let html = tokio::fs::read_to_string(&s.custom_html_path)
+async fn index_handler(state: web::Data<OverlayState>) -> HttpResponse {
+    let html = tokio::fs::read_to_string(&state.custom_html_path)
         .await
         .unwrap_or_else(|_| DEFAULT_HTML.to_string());
-    Html(html)
+    HttpResponse::Ok()
+        .content_type("text/html; charset=utf-8")
+        .body(html)
 }
 
 /// Return `{"bpm": N}` from the latest engine snapshot.
-async fn bpm_handler(State(s): State<OverlayState>) -> impl IntoResponse {
-    let snap = s.engine.snapshot();
+async fn bpm_handler(state: web::Data<OverlayState>) -> web::Json<serde_json::Value> {
+    let snap = state.engine.snapshot();
     let bpm = snap.last_sample.map(|s| s.bpm).unwrap_or(0);
-    Json(json!({ "bpm": bpm }))
+    web::Json(json!({ "bpm": bpm }))
 }

@@ -50,7 +50,7 @@ impl WebhookIntegration {
                 chrono::Utc::now().to_rfc3339(),
                 device.clone().unwrap_or_default(),
             ),
-            EngineEvent::SessionReset => (
+            EngineEvent::SessionReset | EngineEvent::DeviceFound { .. } => (
                 String::new(),
                 String::new(),
                 chrono::Utc::now().to_rfc3339(),

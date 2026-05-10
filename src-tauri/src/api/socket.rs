@@ -1,8 +1,3 @@
-//! Local IPC socket. Linux/macOS use a Unix domain socket, Windows uses a
-//! named pipe. The protocol is newline delimited JSON: each connection
-//! receives an unsolicited stream of [`EngineEvent`] frames and may send
-//! request frames matching [`Command`].
-
 use std::sync::Arc;
 
 use anyhow::{Context, Result};

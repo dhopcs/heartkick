@@ -1,7 +1,3 @@
-//! Daemon orchestration: builds the engine, starts API transports and
-//! integrations, and either runs forever (daemon mode) or returns the engine
-//! handle to the app (in process embedding).
-
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -88,7 +84,7 @@ pub async fn start_with_paths(
             let engine_prom = engine.clone();
             let bind = prom_cfg.bind.clone();
             tokio::spawn(async move {
-                if let Err(e) = serve_prometheus(engine_prom, bind).await {
+                if let Err(e) = crate::integrations::prometheus::serve(engine_prom, bind).await {
                     tracing::error!(error = %e, "Prometheus server exited");
                 }
             });
@@ -143,29 +139,5 @@ pub async fn run_forever() -> Result<()> {
     let _handle = start().await?;
     let _ = tokio::signal::ctrl_c().await;
     tracing::info!("shutting down");
-    Ok(())
-}
-
-/// A minimal axum server that serves only the `/metrics` Prometheus endpoint.
-async fn serve_prometheus(engine: Arc<Engine>, bind: String) -> Result<()> {
-    use axum::{extract::State, response::IntoResponse, routing::get, Router};
-
-    async fn metrics_handler(State(engine): State<Arc<Engine>>) -> impl IntoResponse {
-        let snap = engine.snapshot();
-        (
-            [(
-                axum::http::header::CONTENT_TYPE,
-                "text/plain; version=0.0.4; charset=utf-8",
-            )],
-            crate::integrations::prometheus::render(&snap),
-        )
-    }
-
-    let router = Router::new()
-        .route("/metrics", get(metrics_handler))
-        .with_state(engine);
-    let listener = tokio::net::TcpListener::bind(&bind).await?;
-    tracing::info!(addr = %bind, "Prometheus metrics server listening");
-    axum::serve(listener, router).await?;
     Ok(())
 }

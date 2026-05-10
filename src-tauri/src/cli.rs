@@ -1,5 +1,3 @@
-//! CLI surface. Single binary, multiple modes.
-
 use clap::Parser;
 
 #[derive(Debug, Parser)]

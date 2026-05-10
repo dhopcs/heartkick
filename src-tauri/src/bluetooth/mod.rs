@@ -1,9 +1,3 @@
-//! Heart rate source abstraction.
-//!
-//! All sources produce a stream of [`HrSample`] values. The single
-//! implementation wraps `tauri-plugin-blec`, which handles desktop (btleplug)
-//! and mobile (Android Tauri plugin, iOS CoreBluetooth) in one crate.
-
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -45,8 +39,14 @@ pub enum ConnectionState {
 /// or platform plugins.
 #[async_trait]
 pub trait HeartRateSource: Send + Sync {
-    /// Scan for nearby BLE heart rate monitors. Returns after `timeout_ms`.
-    async fn scan(&self, timeout_ms: u64) -> anyhow::Result<Vec<DeviceInfo>>;
+    /// Scan for nearby BLE devices. Each newly-discovered device is sent on
+    /// `progress` as soon as it appears; the full deduplicated list is returned
+    /// when the scan window (`timeout_ms`) expires.
+    async fn scan(
+        &self,
+        timeout_ms: u64,
+        progress: mpsc::Sender<DeviceInfo>,
+    ) -> anyhow::Result<Vec<DeviceInfo>>;
 
     /// Connect to `address` and stream samples on the returned channel.
     async fn connect(&self, address: &str, tx: mpsc::Sender<HrSample>) -> anyhow::Result<()>;

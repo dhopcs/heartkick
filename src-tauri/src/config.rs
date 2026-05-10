@@ -1,5 +1,3 @@
-//! Configuration loaded from a TOML file in the OS standard config directory.
-
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
