@@ -26,28 +26,42 @@ Heart rate monitor app for desktop and Android. Connects to Bluetooth HR sensors
 
 ---
 
+## Supported Platforms
+- Any Bluetooth LE heart rate monitor (e.g. COOSPO H6, Polar H10, Wahoo Tickr, Xiaomi Mi Band 5/6/7, etc.)
+- Android: any device running API 26+ (Android 8.0+), with Bluetooth LE support
+- Desktop: Windows 10+, macOS 10.14+, Linux with Bluetooth LE support (BlueZ)
+- OBS browser source overlay works on any platform OBS supports
+
 ## Features
 
 - Tauri desktop app + Android app (API 26+)
-- TUI mode for terminal enjoyers and low-resource environments
 - Daemon mode with no UI for integrated use
-- Live BPM gauge with HRV (RMSSD) and session stats (min/max/avg, elapsed)
-- Bluetooth LE - connects to any standard HR monitor; auto-reconnect on drop
-- Session history stored in SQLite
-- HTTP API on `127.0.0.1:7878` (optional Bearer token auth)
-- Unix socket API
 - OBS browser-source overlay (customisable HTML)
 - OSC output for VR / VTubing rigs etc.
+- Live BPM gauge with HRV (RMSSD) and session stats (min/max/avg, elapsed)
+- Bluetooth LE - connects to any standard HR monitor; auto-reconnect on drop
+- HTTP API on `127.0.0.1:7878` (optional Bearer token auth)
 - Webhooks with `{bpm}` / `{rr}` / `{timestamp}` substitutions
-- Prometheus metrics (pull endpoint + optional remote-write push)
-- Desktop (Linux, macOS, Windows) and Android (API 26+)
+- Prometheus metrics (`/metrics` server / remote-write push)
 - Configurable via `~/.config/heartkick/config.toml` (or OS equivalent)
 
 ## Install
 
 Go to the [releases page](https://github.com/dhopcs/heartkick/releases) and grab the relevant installer for your platform. Install and run it, and you should be good to go.
 
-For Arch Linux users, `heartkick` `heartkick-git` and `heartkick-bin` are available on AUR.
+Arch Linux users can find `heartkick`, `heartkick-git`, and `heartkick-bin` available on AUR.
+
+Debian/Ubuntu users can install the `.deb` file with:
+
+```bash
+cd ~/Downloads
+sudo dpkg -i heartkick-*.deb
+```
+
+Others can either build from source or use the AppImage.
+
+For Android, grab the `.apk` from releases, enable "Install unknown apps" for your browser or file manager, and install it.
+
 
 **Dependencies:** Rust (stable), Node.js, pnpm
 
@@ -67,6 +81,9 @@ The installer ends up in `src-tauri/target/release/bundle/` - `.deb` and `.AppIm
 ```
 rust
 pnpm
+node
+bluez
+just
 ```
 
 Android builds additionally need the Android SDK (API 36), NDK 29, and a JDK. Set:
@@ -119,7 +136,3 @@ body = '{"bpm":{bpm}}'
 enabled = true
 bind = "127.0.0.1:9091"
 ```
-
-## License
-
-MIT
