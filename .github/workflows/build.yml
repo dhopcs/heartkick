@@ -2,7 +2,10 @@ name: Build
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -141,8 +144,8 @@ jobs:
         env:
           BUILD_TOOLS: ${{ env.ANDROID_SDK_ROOT }}/build-tools/${{ env.ANDROID_BUILD_TOOLS_VERSION }}
           APK_UNSIGNED: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
-          APK_ALIGNED: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-aligned.apk
-          APK_SIGNED: src-tauri/gen/android/app/build/outputs/apk/universal/release/heartkick-signed.apk
+          APK_ALIGNED: aligned.apk
+          APK_SIGNED: heartkick-universal-${{ github.ref_name }}.apk
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > /tmp/heartkick.jks
           "$BUILD_TOOLS/zipalign" -f -p 4 "$APK_UNSIGNED" "$APK_ALIGNED"
@@ -158,5 +161,30 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: heartkick-android
-          path: src-tauri/gen/android/app/build/outputs/apk/universal/release/heartkick-signed.apk
+          path: heartkick-universal-${{ github.ref_name }}.apk
           if-no-files-found: error
+
+  release:
+    needs: [build-desktop, build-android]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            artifacts/heartkick-linux/**/*.AppImage
+            artifacts/heartkick-linux/**/*.deb
+            artifacts/heartkick-windows/**/*.exe
+            artifacts/heartkick-windows/**/*.msi
+            artifacts/heartkick-macos/**/*.dmg
+            artifacts/heartkick-android/heartkick-*.apk
