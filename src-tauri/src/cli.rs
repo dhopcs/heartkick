@@ -14,12 +14,8 @@ pub struct Cli {
     pub daemon: bool,
 
     /// Force the Tauri/webview GUI regardless of the config launch_mode setting.
-    #[arg(long, conflicts_with = "tui")]
+    #[arg(long)]
     pub gui: bool,
-
-    /// Force the terminal UI regardless of the config launch_mode setting.
-    #[arg(long, conflicts_with = "gui")]
-    pub tui: bool,
 
     /// Override the log level (trace, debug, info, warn, error).
     #[arg(long)]

@@ -10,8 +10,6 @@ pub mod daemon;
 pub mod integrations;
 pub mod logs;
 pub mod tauri_commands;
-#[cfg(not(any(target_os = "ios", target_os = "android")))]
-pub mod tui;
 
 use tauri_commands as cmds;
 
@@ -24,19 +22,6 @@ pub fn init_tracing(level: Option<&str>) {
     let _ = tracing_subscriber::registry()
         .with(filter)
         .with(fmt::layer())
-        .with(logs::LogLayer)
-        .try_init();
-}
-
-/// Initialize tracing for TUI mode: only feeds the in-process ring buffer so
-/// that log output never prints over the terminal UI.
-pub fn init_tracing_tui(level: Option<&str>) {
-    use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-    let filter = level.map(EnvFilter::new).unwrap_or_else(|| {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
-    });
-    let _ = tracing_subscriber::registry()
-        .with(filter)
         .with(logs::LogLayer)
         .try_init();
 }

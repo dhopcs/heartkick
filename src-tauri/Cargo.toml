@@ -51,5 +51,3 @@ sqlx = { version = "0.8", features = ["sqlite", "runtime-tokio", "chrono"] }
 
 [target.'cfg(not(any(target_os = "ios", target_os = "android")))'.dependencies]
 btleplug = "0.12"
-ratatui = "0.30"
-crossterm = { version = "0.29", features = ["event-stream"] }

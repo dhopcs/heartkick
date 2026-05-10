@@ -16,13 +16,12 @@ pub struct Config {
     pub integrations: IntegrationsConfig,
 }
 
-/// Which UI to launch on desktop when no `--gui` / `--tui` flag is passed.
+/// Which UI to launch on desktop when no `--gui` flag is passed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
 pub enum LaunchMode {
     #[default]
     Gui,
-    Tui,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -31,7 +30,7 @@ pub struct GeneralConfig {
     pub locale: String,
     pub log_level: String,
     /// Desktop-only: which UI to open when the binary is launched without
-    /// `--gui` or `--tui`. Ignored on mobile. Defaults to `"gui"`.
+    /// `--gui`. Ignored on mobile. Defaults to `"gui"`.
     pub launch_mode: LaunchMode,
 }
 

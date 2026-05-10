@@ -37,44 +37,5 @@ fn main() {
         return;
     }
 
-    #[cfg(not(any(target_os = "ios", target_os = "android")))]
-    {
-        use heartkick_lib::config::{Config, LaunchMode};
-
-        // Load config once; fall back to defaults if the file doesn't exist yet.
-        let config = heartkick_lib::config::config_path()
-            .and_then(|p| Config::load_from(&p))
-            .unwrap_or_default();
-
-        // Resolve launch mode: CLI flag > config setting > default (gui).
-        let use_tui = if cli.tui {
-            true
-        } else if cli.gui {
-            false
-        } else {
-            config.general.launch_mode == LaunchMode::Tui
-        };
-
-        if use_tui {
-            heartkick_lib::init_tracing_tui(cli.log.as_deref());
-            let runtime = tokio::runtime::Builder::new_multi_thread()
-                .worker_threads(2)
-                .thread_stack_size(512 * 1024)
-                .enable_all()
-                .build()
-                .expect("tokio runtime");
-            if let Err(e) = runtime.block_on(async {
-                let daemon = heartkick_lib::daemon::start().await?;
-                let config = daemon.config.read().clone();
-                heartkick_lib::tui::run(daemon.engine, config, daemon.config_file, daemon.data_dir)
-                    .await
-            }) {
-                eprintln!("tui error: {e}");
-                std::process::exit(1);
-            }
-            return;
-        }
-    }
-
     heartkick_lib::run()
 }
